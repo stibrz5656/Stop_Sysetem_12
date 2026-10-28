@@ -116,7 +116,6 @@
   <div id="date-display">----/--/-- --:--:--</div>
   
   <div id="sensor-data">
-    <div>日時: <span id="val-date" style="color:#FFFFFF;">--</span></div>
     <div>揺れ: <span id="val-acc" style="color:#FFE169;">0.00</span></div>
     <div>止まれ確率: <span id="val-ai" style="color:#4DA6FF;">0.00</span></div>
     <div>標識検知: <span id="flag-visible" style="color:#FF6B6B;">false</span></div>
@@ -135,7 +134,8 @@
     </div>
 
     <div id="image-container">
-      <img id="character-image" src="キャラ.PNG" alt="表示できません" class="roadmap-img">
+        
+        <img id="character-image" src="Character.png" alt="表示できません" class="roadmap-img">
     </div>
 
     <button id="start-button" type="button" onclick="startSystem()">Tap to Start</button>
@@ -177,7 +177,7 @@
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    const URL = "https://teachablemachine.withgoogle.com/models/amJFUefti/";
+    const URL = "https://teachablemachine.withgoogle.com/models/h9lXk5vmB/";
 
     // ===== 認識設定 =====
     // 実走行ではAI確率が上下するため、85%固定から65%へ下げています。
@@ -250,9 +250,40 @@
             warningBox.innerText = "監視中\n（安全運転で！）";
             warningBox.style.backgroundImage = "linear-gradient(135deg, #555 0%, #333 100%)";
             window.requestAnimationFrame(loop);
+        
         } catch (error) {
             console.error("システム起動エラー:", error);
-            alert("システムを起動できませんでした。\nカメラ・センサーの許可と、インターネット接続を確認してください。");
+
+            // カメラが起動済みなら解放する
+            if (webcam) {
+                try {
+                    webcam.stop();
+            // 修正:カメラ許可NGのとき再起動可能　L261~L287
+                } catch (stopError) {
+                    console.error("カメラ停止エラー:", stopError);
+                }
+                webcam = null;
+            }
+
+            model = null;
+            systemStarted = false;
+
+            // 起動画面を復元して再試行できるようにする
+            document.getElementById("title-container").style.display = "";
+            document.getElementById("image-container").style.display = "";
+            document.getElementById("start-button").style.display = "";
+            document.getElementById("help-button").style.display = "";
+
+            document.getElementById("sensor-data").style.display = "none";
+            document.getElementById("webcam-container").replaceChildren();
+
+            const warningBox = document.getElementById("warning-message");
+            warningBox.style.display = "none";
+
+            alert(
+                "システムを起動できませんでした。\n" +
+                "カメラ・センサーの許可とインターネット接続を確認して、もう一度お試しください。"
+            );
         }
     }
 
