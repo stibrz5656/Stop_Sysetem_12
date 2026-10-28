@@ -121,6 +121,7 @@
     <div>標識検知: <span id="flag-visible" style="color:#FF6B6B;">false</span></div>
     <div>停止確認: <span id="flag-stopped" style="color:#2ECC71;">false</span></div>
     <div>連続認識: <span id="val-confirm" style="color:#FAD02E;">0</span></div>
+    <div>GPS速度: <span id="val-gps" style="color:#FFE169;">取得中...</span></div>
     <div>AI判定: <span id="val-class" style="color:#FFFFFF;">---</span></div>
   </div>
 
@@ -177,7 +178,7 @@
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    const URL = "https://teachablemachine.withgoogle.com/models/h9lXk5vmB/";
+    const URL = "https://teachablemachine.withgoogle.com/models/-RzfjiMK8/";
 
     // ===== 認識設定 =====
     // 実走行ではAI確率が上下するため、85%固定から65%へ下げています。
@@ -191,6 +192,16 @@
     // 加速度が小さい状態が500ms続いたら停止と判定します。
     const STOP_CONFIRM_MS = 500;
     const THRESHOLD_ACCEL = 0.50;
+    
+    // 追加:GPSセンサーの追加 →
+    const GPS_STOP_SPEED_KMH = 2.0;  // 停止とみなす速度の目安
+    const GPS_STOP_CONFIRM_MS = 1500; // 1.5秒間継続したら停止候補
+    const GPS_TIMEOUT_MS = 3000;      // 3秒以上更新がなければ無効扱い
+
+    let gpsSpeedKmh = null;
+    let gpsLastUpdate = 0;
+    let gpsStopStartTime = null;
+    //　追加:ここまで　←
 
     let isSignVisible = false;
     let hasStopped = false;
@@ -208,8 +219,8 @@
     }
 
     async function startSystem() {
+        
         if (systemStarted) return;
-
         try {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 const permissionState = await DeviceMotionEvent.requestPermission();
@@ -218,7 +229,9 @@
                     return;
                 }
             }
+            
             window.addEventListener('devicemotion', handleMotion);
+            startGPS();
 
             if (window.speechSynthesis) {
                 const uttr = new SpeechSynthesisUtterance("");
@@ -258,7 +271,7 @@
             if (webcam) {
                 try {
                     webcam.stop();
-            // 修正:カメラ許可NGのとき再起動可能　L262~L288
+            // 修正:カメラ許可NGのとき再起動可能　→
                 } catch (stopError) {
                     console.error("カメラ停止エラー:", stopError);
                 }
@@ -285,7 +298,7 @@
                 "カメラ・センサーの許可や\n" +
                 "インターネット環境を確認してもう一度お試しください。"
             );
-        }
+        }   // 修正:ここまで　←
     }
 
     function handleMotion(event) {
@@ -296,6 +309,60 @@
 
         currentAcceleration = Math.abs(accX) + Math.abs(accY) + Math.abs(accZ);
         document.getElementById("val-acc").innerText = currentAcceleration.toFixed(2);
+
+    // 追加:GPSの取得する関数を追加　→
+    function startGPS() {
+        if (!navigator.geolocation) {
+            console.warn("このブラウザはGPSに対応していません。");
+            return;
+        }
+
+        navigator.geolocation.watchPosition(
+            (position) => {
+                const speed = position.coords.speed;
+
+                if (speed === null || !Number.isFinite(speed)) {
+                    gpsSpeedKmh = null;
+                    gpsLastUpdate = 0;
+                    gpsStopStartTime = null;
+                    return;
+                }
+
+                gpsSpeedKmh = speed * 3.6;
+                gpsLastUpdate = Date.now();
+
+                // GPS速度を表示（表示欄は次の手順で追加）
+                const gpsElement = document.getElementById("val-gps");
+                if (gpsElement) {
+                    gpsElement.textContent = gpsSpeedKmh.toFixed(1) + " km/h";
+                }
+
+                // GPSの停止状態を確認
+                if (isSignVisible && !hasStopped) {
+                    if (gpsSpeedKmh <= GPS_STOP_SPEED_KMH) {
+                        if (gpsStopStartTime === null) {
+                            gpsStopStartTime = Date.now();
+                        }
+                    } else {
+                        gpsStopStartTime = null;
+                    }
+                } else {
+                    gpsStopStartTime = null;
+                }
+            },
+            (error) => {
+                console.warn("GPS取得エラー:", error.message);
+                gpsSpeedKmh = null;
+                gpsLastUpdate = 0;
+                gpsStopStartTime = null;
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
+            }
+        );
+    }   //　追加:ここまで　←
 
         // 「止まれ」検知中だけ停止確認を行います。
         if (isSignVisible && !hasStopped) {
