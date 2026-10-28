@@ -231,7 +231,7 @@
             }
             
             window.addEventListener('devicemotion', handleMotion);
-            startGPS();
+            
 
             if (window.speechSynthesis) {
                 const uttr = new SpeechSynthesisUtterance("");
@@ -264,41 +264,10 @@
             warningBox.style.backgroundImage = "linear-gradient(135deg, #555 0%, #333 100%)";
             window.requestAnimationFrame(loop);
         
-        } catch (error) {
+         } catch (error) {
             console.error("システム起動エラー:", error);
-
-            // カメラが起動済みなら解放する
-            if (webcam) {
-                try {
-                    webcam.stop();
-            // 修正:カメラ許可NGのとき再起動可能　→
-                } catch (stopError) {
-                    console.error("カメラ停止エラー:", stopError);
-                }
-                webcam = null;
-            }
-
-            model = null;
-            systemStarted = false;
-
-            // 起動画面を復元して再試行できるようにする
-            document.getElementById("title-container").style.display = "";
-            document.getElementById("image-container").style.display = "";
-            document.getElementById("start-button").style.display = "";
-            document.getElementById("help-button").style.display = "";
-
-            document.getElementById("sensor-data").style.display = "none";
-            document.getElementById("webcam-container").replaceChildren();
-
-            const warningBox = document.getElementById("warning-message");
-            warningBox.style.display = "none";
-
-            alert(
-                "システムを起動できませんでした。\n" +
-                "カメラ・センサーの許可や\n" +
-                "インターネット環境を確認してもう一度お試しください。"
-            );
-        }   // 修正:ここまで　←
+            alert("システムを起動できませんでした。\nカメラ・センサーの許可と、インターネット接続を確認してください。");
+        }
     }
 
     function handleMotion(event) {
