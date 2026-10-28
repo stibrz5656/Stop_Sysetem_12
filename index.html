@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一時停止標識検知システム</title>
+  <style>
+    body {
+      background-color: #f7f9fa;
+      background-image: radial-gradient(circle at center, #ffffff 0%, #eef1f2 100%);
+      margin: 0;
+      padding: 0;
+      font-family: 'Arial Black', 'Impact', 'Hiragino Kaku Gothic StdN', sans-serif;
+      text-align: center;
+      overflow-x: hidden;
+      transition: background-color 0.5s ease;
+    }
+
+    #help-button {
+      position: fixed; top: 20px; left: 20px; font-size: 16px; color: #999; background: white;
+      border: 2px solid #ddd; padding: 6px 22px; border-radius: 20px; font-weight: bold;
+      cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: all 0.2s; z-index: 10;
+    }
+    #help-button:hover { background: #f5f5f5; }
+
+    #date-display {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      font-size: 13px;
+      color: #333;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid #ddd;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-weight: bold;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      font-family: sans-serif;
+    }
+
+    @media (max-width: 480px) {
+      #date-display {
+        right: 8px;
+        bottom: 8px;
+        font-size: 12px;
+        padding: 5px 10px;
+      }
+    }
+
+
+    .main-container { padding-top: 60px; display: flex; flex-direction: column; align-items: center; }
+
+    #title-container { margin-bottom: 25px; line-height: 1.1; }
+    .logo-char {
+      display: inline-block; font-size: 55px; font-weight: 900; letter-spacing: -2px;
+      text-shadow: 3px 3px 0 #222, -3px 3px 0 #222, 3px -3px 0 #222, -3px -3px 0 #222,
+                   3px 0px 0 #222, -3px 0px 0 #222, 0px 3px 0 #222, 0px -3px 0 #222,
+                   5px 8px 0 rgba(0, 0, 0, 0.15); margin: 0 2px;
+    }
+    .char-b { color: #4DA6FF; transform: rotate(-5deg); }
+    .char-p { color: #FF6B6B; transform: rotate(5deg); }
+    .char-y { color: #FAD02E; transform: rotate(-3deg); }
+    .char-g { color: #2ECC71; transform: rotate(4deg); }
+    .sub-title { font-size: 18px; color: #444; font-weight: bold; margin-top: 8px; letter-spacing: 2px; text-transform: uppercase; }
+
+    #image-container { max-width: 90%; margin: 0 auto 25px auto; }
+    .roadmap-img { max-width: 85%; height: auto; border-radius: 20px; }
+
+    #start-button {
+      color: #333; font-size: 24px; background-image: linear-gradient(to bottom, #FFE169 0%, #FAD02E 100%);
+      padding: 12px 40px; border-radius: 35px; border: 1px solid #E6B800;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15), inset 0 3px 6px rgba(255, 255, 255, 0.6), inset 0 -5px 8px rgba(0, 0, 0, 0.1);
+      font-weight: bold; cursor: pointer; transition: all 0.15s ease;
+    }
+    #start-button:active { transform: translateY(3px); box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15), inset 0 1px 3px rgba(255, 255, 255, 0.4); }
+
+    #webcam-container { display: flex; justify-content: center; align-items: center; min-height: 50vh; position: relative; margin-top: 20px; }
+    #webcam-container video { max-width: 90%; height: auto; border-radius: 15px; border: 4px solid #333; }
+
+    #sensor-data {
+      position: fixed; top: 15px; right: 15px; font-size: 13px; color: #fff;
+      background: rgba(0, 0, 0, 0.85); padding: 12px 18px; border-radius: 10px;
+      font-family: monospace; text-align: left; line-height: 1.5; z-index: 100; display: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    #sensor-data div { color: #fff; font-size: 13px; }
+
+    /* 警告ボックスの文字サイズと余白をスマホ用に最適化 */
+    #warning-message {
+      display: none; 
+      font-size: 28px;           /* 45pxから28pxに縮小し、はみ出しを防止 */
+      line-height: 1.4;          /* 2行になったときの行間を綺麗に調整 */
+      color: white; 
+      font-weight: bold; 
+      padding: 20px 30px;        /* 上下左右の余白をすっきりサイズに調整 */
+      width: 75%;                /* 横幅が広がりすぎないように画面の75%に固定 */
+      max-width: 340px;          /* 横幅の最大サイズを固定 */
+      border-radius: 25px; 
+      white-space: pre-line; 
+      position: fixed; 
+      top: 50%; 
+      left: 50%;
+      transform: translate(-50%, -50%); 
+      z-index: 90; 
+      text-align: center;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+      background-image: linear-gradient(135deg, #555 0%, #333 100%);
+      transition: all 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+  <button id="help-button" onclick="showHelp()">ヘルプ</button>
+  <div id="date-display">----/--/-- --:--:--</div>
+  
+  <div id="sensor-data">
+    <div>日時: <span id="val-date" style="color:#FFFFFF;">--</span></div>
+    <div>揺れ: <span id="val-acc" style="color:#FFE169;">0.00</span></div>
+    <div>止まれ確率: <span id="val-ai" style="color:#4DA6FF;">0.00</span></div>
+    <div>標識検知: <span id="flag-visible" style="color:#FF6B6B;">false</span></div>
+    <div>停止確認: <span id="flag-stopped" style="color:#2ECC71;">false</span></div>
+    <div>連続認識: <span id="val-confirm" style="color:#FAD02E;">0</span></div>
+    <div>AI判定: <span id="val-class" style="color:#FFFFFF;">---</span></div>
+  </div>
+
+  <div class="main-container">
+    <div id="title-container">
+      <span class="logo-char char-b">S</span>
+      <span class="logo-char char-p">T</span>
+      <span class="logo-char char-y">O</span>
+      <span class="logo-char char-g">P</span>
+      <div class="sub-title">Detection System</div>
+    </div>
+
+    <div id="image-container">
+      <img id="character-image" src="キャラ.PNG" alt="表示できません" class="roadmap-img">
+    </div>
+
+    <button id="start-button" type="button" onclick="startSystem()">Tap to Start</button>
+  </div>
+
+  <div class="container-center">
+    <div id="webcam-container"></div>
+  </div>
+  <div id="warning-message">監視中...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <script type="text/javascript">
+
+    function updateDateTime() {
+        const now = new Date();
+
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        const hour = String(now.getHours()).padStart(2, "0");
+        const minute = String(now.getMinutes()).padStart(2, "0");
+        const second = String(now.getSeconds()).padStart(2, "0");
+
+        const dateText = `${year}/${month}/${day} ${hour}:${minute}:${second}`;
+
+        const dateDisplay = document.getElementById("date-display");
+        if (dateDisplay) {
+            dateDisplay.innerText = dateText;
+        }
+
+        const valDate = document.getElementById("val-date");
+        if (valDate) {
+            valDate.innerText = dateText;
+        }
+    }
+
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    const URL = "https://teachablemachine.withgoogle.com/models/amJFUefti/";
+
+    // ===== 認識設定 =====
+    // 実走行ではAI確率が上下するため、85%固定から65%へ下げています。
+    const THRESHOLD_AI = 0.80;
+    // この値を下回る状態が連続したときに「標識を通過した」と判断します。
+    const THRESHOLD_AI_LOST = 0.45;
+    // 88%以上を6回連続で認識したら「止まれ」を確定します。
+    const SIGN_CONFIRM_FRAMES = 3;
+    // 60%未満を10回連続で認識したら標識が画面から消えたと判断します。
+    const SIGN_LOST_FRAMES = 6;
+    // 加速度が小さい状態が500ms続いたら停止と判定します。
+    const STOP_CONFIRM_MS = 500;
+    const THRESHOLD_ACCEL = 0.50;
+
+    let isSignVisible = false;
+    let hasStopped = false;
+    let currentAcceleration = 0;
+    let signConfirmCount = 0;
+    let signLostCount = 0;
+    let stopStartTime = null;
+    let resultTimer = null;
+    let systemStarted = false;
+
+    let model, webcam, maxPredictions;
+
+    function showHelp() {
+      alert("【使い方】\n\n1. 「Tap to Start」を押します。\n2. 自転車にスマホをセットして走ります。\n3. 標識を見つけると「前方に一時停止があります」と案内され、通り過ぎた瞬間に「不停止」か「安全確認ヨシ」かが判定されます！");
+    }
+
+    async function startSystem() {
+        if (systemStarted) return;
+
+        try {
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                const permissionState = await DeviceMotionEvent.requestPermission();
+                if (permissionState !== 'granted') {
+                    alert("モーションセンサーの許可が必要です！");
+                    return;
+                }
+            }
+            window.addEventListener('devicemotion', handleMotion);
+
+            if (window.speechSynthesis) {
+                const uttr = new SpeechSynthesisUtterance("");
+                window.speechSynthesis.speak(uttr);
+            }
+
+            document.getElementById("title-container").style.display = "none";
+            document.getElementById("image-container").style.display = "none";
+            document.getElementById("start-button").style.display = "none";
+            document.getElementById("help-button").style.display = "none";
+            document.getElementById("sensor-data").style.display = "block";
+
+            const warningBox = document.getElementById("warning-message");
+            warningBox.style.display = "block";
+            warningBox.innerText = "AI起動中...";
+
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = false;
+            webcam = new tmImage.Webcam(500, 500, flip);
+            await webcam.setup({ facingMode: "environment" });
+            await webcam.play();
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+            systemStarted = true;
+            warningBox.innerText = "監視中\n（安全運転で！）";
+            warningBox.style.backgroundImage = "linear-gradient(135deg, #555 0%, #333 100%)";
+            window.requestAnimationFrame(loop);
+        } catch (error) {
+            console.error("システム起動エラー:", error);
+            alert("システムを起動できませんでした。\nカメラ・センサーの許可と、インターネット接続を確認してください。");
+        }
+    }
+
+    function handleMotion(event) {
+        const acc = event.acceleration || {};
+        const accX = Number(acc.x) || 0;
+        const accY = Number(acc.y) || 0;
+        const accZ = Number(acc.z) || 0;
+
+        currentAcceleration = Math.abs(accX) + Math.abs(accY) + Math.abs(accZ);
+        document.getElementById("val-acc").innerText = currentAcceleration.toFixed(2);
+
+        // 「止まれ」検知中だけ停止確認を行います。
+        if (isSignVisible && !hasStopped) {
+            if (currentAcceleration < THRESHOLD_ACCEL) {
+                if (stopStartTime === null) stopStartTime = Date.now();
+
+                if (Date.now() - stopStartTime >= STOP_CONFIRM_MS) {
+                    hasStopped = true;
+                    document.getElementById("flag-stopped").innerText = "true (停止確認！)";
+                }
+            } else {
+                stopStartTime = null;
+            }
+        } else if (!isSignVisible) {
+            stopStartTime = null;
+        }
+    }
+
+    async function loop() {
+        webcam.update();
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    function speakAlert(text) {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel(); 
+        const uttr = new SpeechSynthesisUtterance(text);
+        uttr.lang = "ja-JP";
+        uttr.rate = 1.25; 
+        window.speechSynthesis.speak(uttr);
+    }
+
+    async function predict() {
+        if (!model || !webcam) return;
+
+        const prediction = await model.predict(webcam.canvas);
+
+        let stopProb = 0;
+        let bestClass = "---";
+        let bestProb = 0;
+
+        for (let i = 0; i < maxPredictions; i++) {
+            const className = String(prediction[i].className || "");
+            const probability = Number(prediction[i].probability) || 0;
+
+            if (probability > bestProb) {
+                bestProb = probability;
+                bestClass = className;
+            }
+
+            // Teachable Machineのクラス名「止まれ」を直接検索
+            if (className.trim() === "止まれ") {
+                stopProb = probability;
+            }
+        }
+
+        document.getElementById("val-ai").innerText = stopProb.toFixed(2);
+        document.getElementById("val-class").innerText = `${bestClass} (${(bestProb * 100).toFixed(0)}%)`;
+
+        const warningBox = document.getElementById("warning-message");
+
+        // ===== 1. 「止まれ」の連続認識 =====
+        if (bestClass.trim() === "止まれ" && stopProb >= THRESHOLD_AI) {
+            signConfirmCount++;
+            signLostCount = 0;
+        } else if (stopProb < THRESHOLD_AI_LOST) {
+            signLostCount++;
+            signConfirmCount = 0;
+        } else {
+            // 0.45～0.80の間では状態を維持する
+            signLostCount = 0;
+        }
+
+        document.getElementById("val-confirm").innerText = signConfirmCount;
+
+        // 80%以上を3回連続で認識したら検知
+        if (!isSignVisible && signConfirmCount >= SIGN_CONFIRM_FRAMES) {
+            isSignVisible = true;
+            hasStopped = false;
+            stopStartTime = null;
+            signLostCount = 0;
+
+            document.getElementById("flag-visible").innerText = "true";
+            document.getElementById("flag-stopped").innerText = "false";
+
+            document.body.style.backgroundColor = "#ffe6cc";
+            warningBox.innerText = "前方注意！\n一時停止あり";
+            warningBox.style.backgroundImage = "linear-gradient(135deg, #FF9500 0%, #FF5E00 100%)";
+            warningBox.style.boxShadow = "0 15px 35px rgba(255, 149, 0, 0.4)";
+            speakAlert("前方に、一時停止があります。");
+        }
+
+        // ===== 2. 標識を通過したか判定 =====
+        if (isSignVisible && signLostCount >= SIGN_LOST_FRAMES) {
+            isSignVisible = false;
+            signConfirmCount = 0;
+            signLostCount = 0;
+            stopStartTime = null;
+            document.getElementById("flag-visible").innerText = "false";
+
+            if (!hasStopped) {
+                document.body.style.backgroundColor = "#ffcccc";
+                warningBox.innerText = "一時不停止です！！\n危険！";
+                warningBox.style.backgroundImage = "linear-gradient(135deg, #FF6B6B 0%, #FF3B30 100%)";
+                warningBox.style.boxShadow = "0 15px 35px rgba(255, 59, 48, 0.5)";
+                speakAlert("危険です。一時不停止を検知しました。");
+            } else {
+                document.body.style.backgroundColor = "#e6ffed";
+                warningBox.innerText = "安全確認ヨシ！\n合格✨";
+                warningBox.style.backgroundImage = "linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)";
+                warningBox.style.boxShadow = "0 15px 35px rgba(46, 204, 113, 0.5)";
+                speakAlert("停止確認。安全運転ありがとうございます。");
+            }
+
+            clearTimeout(resultTimer);
+            resultTimer = setTimeout(() => {
+                document.body.style.backgroundColor = "#f7f9fa";
+                warningBox.innerText = "監視中\n（安全運転で！）";
+                warningBox.style.backgroundImage = "linear-gradient(135deg, #555 0%, #333 100%)";
+                warningBox.style.boxShadow = "0 15px 35px rgba(0, 0, 0, 0.2)";
+                document.getElementById("flag-stopped").innerText = "false";
+            }, 3500);
+        }
+    }
+</script>
+</body>
+</html>
