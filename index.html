@@ -181,7 +181,7 @@
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    const URL = "https://teachablemachine.withgoogle.com/models/-RzfjiMK8/";
+    const URL = "https://teachablemachine.withgoogle.com/models/B4ej7KjxK/";
 
     // ===== 認識設定 =====
     // 実走行ではAI確率が上下するため、85%固定から65%へ下げています。
@@ -215,7 +215,7 @@
 
     if (!navigator.geolocation) {
         statusDisplay.textContent = "非対応";
-        speedDisplay.textContent = "--";
+        speedDisplay.textContent = "取得待ち";
         return;
     }
 
@@ -229,7 +229,7 @@
                 speedKmh = speed * 3.6;
                 speedDisplay.textContent = speedKmh.toFixed(1);
             } else {
-                speedDisplay.textContent = "--";
+                speedDisplay.textContent = "取得待ち";
             }
 
             statusDisplay.textContent = "取得成功";
